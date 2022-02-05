@@ -1,6 +1,6 @@
 package forallel
 
-import forallel.internal.{CodeTree, Sequential, compile, parallelizeParsed}
+import forallel.internal.{CodeTree, Parallel, PrettyPrint, Sequential, compile, parallelizeParsed}
 import zio._
 
 import scala.language.experimental.macros
@@ -14,15 +14,53 @@ object Parallelize {
 class Macro(val c: blackbox.Context) {
   import c.universe._
 
+  def parsePureAssignments(tree: c.Tree): List[(String, c.Tree)] =
+    tree match {
+      case Function(_, body) =>
+        parsePureAssignments(body)
+      case Block(stats, _) =>
+        stats.flatMap(t => parsePureAssignments(t))
+      case ValDef(_, TermName(name), _, body) =>
+        List(name -> body)
+      case other =>
+        List.empty
+    }
+
+  object Lambda {
+    def unapply(tree: c.Tree): Option[(String, c.Tree)] =
+      tree match {
+        case Function(List(ValDef(_, TermName(name), _, _)), body) =>
+          Some(name -> body)
+        case _ =>
+          None
+      }
+  }
+
+  def makeValDefs(pure: List[(String, c.Tree)]): List[ValDef] =
+    pure.map { case (name, tree) =>
+      ValDef(NoMods, TermName(name), TypeTree(), tree)
+    }
+
   def parallelizeImpl[R: c.WeakTypeTag, E: c.WeakTypeTag, A: c.WeakTypeTag](
       zio: c.Tree
   ): c.Tree = {
     def loop(tree: c.Tree, seen: List[String]): Sequential[c.Tree] =
       tree match {
+        case q"$expr.map[..$_](${Lambda(argName, pureBody)})(..$_).flatMap[..$_](${Lambda(_, body)})(..$_)" =>
+          val assignments            = parsePureAssignments(pureBody)
+          val usedArgs: List[String] = getUsedArgs(expr, seen)
+          Sequential.FlatMap(
+            expr,
+            usedArgs,
+            argName,
+            assignments,
+            loop(body, (argName :: assignments.map(_._1)) ++ seen)
+          )
+
         case Apply(
               Apply(
                 TypeApply(Select(expr, TermName("flatMap")), _),
-                List(Function(List(ValDef(_, TermName(argName), _, _)), body))
+                List(Lambda(argName, body))
               ),
               _
             ) =>
@@ -31,13 +69,14 @@ class Macro(val c: blackbox.Context) {
             expr,
             usedArgs,
             argName,
+            List.empty,
             loop(body, argName :: seen)
           )
 
         case Apply(
               Apply(
                 TypeApply(Select(expr, TermName("map")), _),
-                List(Function(List(ValDef(_, TermName(argName), _, _)), body))
+                List(Lambda(argName, body))
               ),
               _
             ) =>
@@ -46,6 +85,7 @@ class Macro(val c: blackbox.Context) {
             expr,
             usedArgs,
             argName,
+            List.empty,
             loop(body, argName :: seen)
           )
 
@@ -56,17 +96,29 @@ class Macro(val c: blackbox.Context) {
           Sequential.Raw(other)
       }
 
-    val ir: Sequential[c.Tree]      = loop(zio, List.empty)
-    val structure: CodeTree[c.Tree] = compile(parallelizeParsed(ir))
+    val sequential: Sequential[c.Tree] = loop(zio, List.empty)
+    val parallelized: Parallel[c.Tree] = parallelizeParsed(sequential)
+    val structure: CodeTree[c.Tree]    = compile(parallelized)
     val result: c.Tree = structure.fold[c.Tree](identity)(
-      (lhs, rhs) => q"$lhs zipPar $rhs",
-      (lhs, args, rhs) => q"$lhs.map { ${functionBody(args, rhs)} }",
-      (lhs, args, rhs) => q"$lhs.flatMap { ${functionBody(args, rhs)} } "
+      ifZipPar = (lhs, rhs) => q"$lhs zipPar $rhs",
+      ifMap = (lhs, args, pure, rhs) => q"""
+$lhs.map { 
+  ${functionBody(args, Block(makeValDefs(pure), rhs))} 
+}
+         """,
+      ifFlatMap = (lhs, args, pure, rhs) => q"""
+$lhs.flatMap { 
+  ${functionBody(args, Block(makeValDefs(pure), rhs))} 
+}
+         """
     )
 
-    val expr = result
-//    renderError(expr)
-    result
+    val expr = clean(result)
+//    println(s"sequential:\n${PrettyPrint(sequential)}")
+//    println(s"parallelized:\n${PrettyPrint(parallelized)}")
+//    println(s"tree:\n${PrettyPrint(structure)}")
+//    println(s"result:\n${show(expr)}")
+    expr
   }
 
   private def tupleConstructor(n: Int) =
@@ -82,25 +134,38 @@ class Macro(val c: blackbox.Context) {
         CaseDef(
           q"${tupleConstructor(args.length)}(..${args.map(makeBinder)})",
           EmptyTree,
-          clean(body, args)
+          clean(body)
         )
       )
     )
 
-  private def clean(tree: Tree, names: List[String]): Tree =
+  private def clean(tree: Tree): Tree =
     tree match {
-      case Ident(TermName(name)) if names.contains(name) =>
-        Ident(TermName(name))
       case Ident(TermName(name)) =>
         Ident(TermName(name))
       case Apply(fun, args) =>
-        Apply(clean(fun, names), args.map(t => clean(t, names)))
-      case Select(qual, name) =>
-        Select(clean(qual, names), name)
+        Apply(clean(fun), args.map(t => clean(t)))
+      case Select(tree, name) =>
+        Select(clean(tree), name)
       case TypeApply(tree, args) =>
-        TypeApply(clean(tree, names), args.map(t => clean(t, names)))
+        TypeApply(clean(tree), args.map(t => clean(t)))
       case TypeTree() =>
         TypeTree()
+      case Block(stats, body) =>
+        Block(stats.map(t => clean(t)), clean(body))
+      case ValDef(mods, name, tpt, rhs) =>
+        ValDef(mods, name, tpt, clean(rhs))
+      case This(name) =>
+        This(name)
+      case Literal(value) =>
+        Literal(value)
+      case Match(selector, cases) =>
+        val cleanedCases = cases.map { case CaseDef(pat, guard, body) =>
+          CaseDef(pat, guard, clean(body))
+        }
+        Match(clean(selector), cleanedCases)
+      case EmptyTree =>
+        EmptyTree
       case other =>
         other
     }
@@ -135,9 +200,8 @@ class Macro(val c: blackbox.Context) {
       case This(_) =>
         List.empty
 
-      case other =>
-        println("OHHH")
-        renderError(other)
+      case _ =>
+        List.empty
     }
 
   private def renderError(tree: c.Tree): Nothing = {
