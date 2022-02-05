@@ -30,3 +30,9 @@ The `par` macro will rewrite the above program to—*essentially*—the followin
 ```
 
 ***Neato!***
+
+## TODO
+
+- [ ] Generalize to work with any zippable structure (zio, cats, monix, etc.)
+- [ ] Get it to work with val assignments inside of for-comprehensions
+- [ ] Test the heck out of it
