@@ -4,6 +4,7 @@ import zio._
 import forallel.Parallelize.par
 
 object ParallelizationExample extends ZIOAppDefault {
+  import forallel.internal.forallel.Parallelizable._
 
   val program =
     par {
@@ -11,7 +12,7 @@ object ParallelizationExample extends ZIOAppDefault {
         string <- stringZIO
         another = string.toUpperCase
         int    <- intZIO
-        cool    = int + 10
+        cool    = int + 11
         int2   <- intZIO
         result <- consumes(another, cool + int2)
         int3   <- intZIO
@@ -19,14 +20,17 @@ object ParallelizationExample extends ZIOAppDefault {
     }
 
   val run =
-    program.timed.debug("RESULT")
+    program.timed.useNow.debug("RESULT")
 
-  def delayedEffect[A](name: String)(a: => A): ZIO[Clock, Nothing, A] =
-    ZIO.debug(s"STARTING $name") *>
-      ZIO.sleep(2.seconds).as(a).debug(s"COMPLETED $name with result")
+  def delayedEffect[A](name: String)(a: => A): ZManaged[Clock, Nothing, A] =
+    (ZIO.debug(s"STARTING $name") *>
+      ZIO.sleep(2.seconds).as(a).debug(s"COMPLETED $name with result")).toManaged_
 
-  lazy val stringZIO = delayedEffect("stringZIO")("LO")
-  lazy val intZIO    = delayedEffect("intZIO")(8)
+  lazy val stringZIO: ZManaged[Clock, NumberFormatException, String] =
+    delayedEffect("stringZIO")("LO")
+
+  lazy val intZIO: ZManaged[Clock with Console, NoSuchElementException, Int] =
+    delayedEffect("intZIO")(8)
 
   def consumes[A](string: String, int: Int) =
     delayedEffect(s"consumes($string, $int)")(string * int)

@@ -1,5 +1,6 @@
 package forallel
 
+import forallel.internal.forallel.Parallelizable
 import forallel.internal.{CodeTree, Parallel, PrettyPrint, Sequential, compile, parallelizeParsed}
 import zio._
 
@@ -7,8 +8,8 @@ import scala.language.experimental.macros
 import scala.reflect.macros.blackbox
 
 object Parallelize {
-  def par[R, E, A](zio: ZIO[R, E, A]): ZIO[R, E, A] =
-    macro Macro.parallelizeImpl[R, E, A]
+  def par[F[-_, +_, +_], R, E, A](zio: F[R, E, A])(implicit parallelizable: Parallelizable[F]): F[R, E, A] =
+    macro Macro.parallelizeImpl[F, R, E, A]
 }
 
 class Macro(val c: blackbox.Context) {
@@ -41,9 +42,9 @@ class Macro(val c: blackbox.Context) {
       ValDef(NoMods, TermName(name), TypeTree(), tree)
     }
 
-  def parallelizeImpl[R: c.WeakTypeTag, E: c.WeakTypeTag, A: c.WeakTypeTag](
+  def parallelizeImpl[F[-_, +_, +_], R, E, A](
       zio: c.Tree
-  ): c.Tree = {
+  )(parallelizable: c.Tree): c.Tree = {
     def loop(tree: c.Tree, seen: List[String]): Sequential[c.Tree] =
       tree match {
         case q"$expr.map[..$_](${Lambda(argName, pureBody)})(..$_).flatMap[..$_](${Lambda(_, body)})(..$_)" =>
@@ -100,7 +101,7 @@ class Macro(val c: blackbox.Context) {
     val parallelized: Parallel[c.Tree] = parallelizeParsed(sequential)
     val structure: CodeTree[c.Tree]    = compile(parallelized)
     val result: c.Tree = structure.fold[c.Tree](identity)(
-      ifZipPar = (lhs, rhs) => q"$lhs zipPar $rhs",
+      ifZipPar = (lhs, rhs) => q"$lhs zipPar2 $rhs",
       ifMap = (lhs, args, pure, rhs) => q"""
 $lhs.map { 
   ${functionBody(args, Block(makeValDefs(pure), rhs))} 
