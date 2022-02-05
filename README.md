@@ -36,3 +36,6 @@ The `par` macro will rewrite the above program to—*essentially*—the followin
 - [ ] Generalize to work with any zippable structure (zio, cats, monix, etc.)
 - [ ] Get it to work with val assignments inside of for-comprehensions
 - [ ] Test the heck out of it
+- [ ] Cross-building for JVM, JS, and Native
+- [ ] Get it to work with Scala 3
+- [ ] Set up publishing
