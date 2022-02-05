@@ -10,11 +10,8 @@ object ParallelizationExample extends ZIOAppDefault {
     par {
       for {
         string <- stringZIO
-        another = string.toUpperCase
         int    <- intZIO
-        cool    = int + 11
-        int2   <- intZIO
-        result <- consumes(another, cool + int2)
+        result <- consumes(string, int)
         int3   <- intZIO
       } yield result.take(int3)
     }

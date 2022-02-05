@@ -6,6 +6,8 @@ import zio._
 
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox
+import forallel.internal.Algorithm
+import scala.collection.immutable
 
 object Parallelize {
   def par[F[-_, +_, +_], R, E, A](zio: F[R, E, A])(implicit parallelizable: Parallelizable[F]): F[R, E, A] =
@@ -98,10 +100,14 @@ class Macro(val c: blackbox.Context) {
       }
 
     val sequential: Sequential[c.Tree] = loop(zio, List.empty)
-    val parallelized: Parallel[c.Tree] = parallelizeParsed(sequential)
-    val structure: CodeTree[c.Tree]    = compile(parallelized)
+
+    val (nodes, yieldExpr) = Algorithm.compileNodes(sequential)
+    val sorted             = Algorithm.topSort(nodes)
+    val parallelized       = Algorithm.parallelizeNodes(sorted, yieldExpr)
+    // val parallelized: Parallel[c.Tree] = parallelizeParsed(sequential)
+    val structure: CodeTree[c.Tree] = compile(parallelized)
     val result: c.Tree = structure.fold[c.Tree](identity)(
-      ifZipPar = (lhs, rhs) => q"$lhs zipPar2 $rhs",
+      ifZipPar = (lhs, rhs) => q"$lhs zipPar $rhs",
       ifMap = (lhs, args, pure, rhs) => q"""
 $lhs.map { 
   ${functionBody(args, Block(makeValDefs(pure), rhs))} 
@@ -115,15 +121,20 @@ $lhs.flatMap {
     )
 
     val expr = clean(result)
-//    println(s"sequential:\n${PrettyPrint(sequential)}")
-//    println(s"parallelized:\n${PrettyPrint(parallelized)}")
-//    println(s"tree:\n${PrettyPrint(structure)}")
-//    println(s"result:\n${show(expr)}")
+    println(s"sequential:\n${PrettyPrint(sequential)}")
+    println(s"parallelized:\n${PrettyPrint(parallelized)}")
+    println(s"tree:\n${PrettyPrint(structure)}")
+    println(s"result:\n${show(expr)}")
     expr
   }
 
-  private def tupleConstructor(n: Int) =
-    Select(Ident(TermName("scala")), TermName(s"Tuple$n"))
+  private def tupleConstructor(args: List[Tree]) =
+    args match {
+      case List(head) =>
+        head
+      case args =>
+        Apply(Select(Ident(TermName("scala")), TermName(s"Tuple${args.length}")), args)
+    }
 
   private def makeBinder(name: String) =
     Bind(TermName(name), Ident(termNames.WILDCARD))
@@ -133,7 +144,7 @@ $lhs.flatMap {
       EmptyTree,
       List(
         CaseDef(
-          q"${tupleConstructor(args.length)}(..${args.map(makeBinder)})",
+          q"${tupleConstructor(args.map(makeBinder))}",
           EmptyTree,
           clean(body)
         )

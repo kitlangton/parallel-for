@@ -7,6 +7,7 @@ object Parallel {
       effects: List[(String, A)],
       pure: List[(String, A)],
       body: Parallel[A]
-  )                                extends Parallel[A]
+  ) extends Parallel[A]
+
   final case class Raw[A](expr: A) extends Parallel[A]
 }

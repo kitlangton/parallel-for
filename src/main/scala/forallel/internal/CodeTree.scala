@@ -43,12 +43,15 @@ object CodeTree {
       pureAssignments: List[(String, A)],
       body: CodeTree[A]
   ) extends CodeTree[A]
+
   final case class Map[A](
       lhs: CodeTree[A],
       args: List[String],
       pureAssignments: List[(String, A)],
       body: CodeTree[A]
-  )                                                              extends CodeTree[A]
+  ) extends CodeTree[A]
+
   final case class ZipPar[A](lhs: CodeTree[A], rhs: CodeTree[A]) extends CodeTree[A]
-  final case class Value[A](value: A)                            extends CodeTree[A]
+
+  final case class Value[A](value: A) extends CodeTree[A]
 }
