@@ -23,16 +23,6 @@ class Macro(val c: blackbox.Context) {
         List.empty
     }
 
-  object Lambda {
-    def unapply(tree: c.Tree): Option[(String, c.Tree)] =
-      tree match {
-        case Function(List(ValDef(_, TermName(name), _, _)), body) =>
-          Some(name -> body)
-        case _ =>
-          None
-      }
-  }
-
   def makeValDefs(pure: List[(String, c.Tree)]): List[ValDef] =
     pure.map { case (name, tree) =>
       ValDef(NoMods, TermName(name), TypeTree(), tree)
@@ -41,10 +31,12 @@ class Macro(val c: blackbox.Context) {
   def parallelizeImpl[F[-_, +_, +_], R, E, A](
       effect: c.Tree
   )(parallelizable: c.Tree): c.Tree = {
+//    renderError(effect)
     val _ = parallelizable
     def loop(tree: c.Tree, seen: List[String]): Sequential[c.Tree] =
       tree match {
-        case q"$expr.map[..$_](${Lambda(argName, pureBody)})(..$_).flatMap[..$_](${Lambda(_, body)})(..$_)" =>
+        case FlatMap(Map(expr, argName, pureBody), _, body) =>
+//        case q"$expr.map[..$_](${Lambda(argName, pureBody)})(..$_).flatMap[..$_](${Lambda(_, body)})(..$_)" =>
           val assignments            = parsePureAssignments(pureBody, argName :: seen)
           val usedArgs: List[String] = getUsedArgs(expr, seen)
           Sequential.FlatMap(
@@ -135,7 +127,10 @@ $lhs.flatMap {
 //    println(s"parallelized:\n${PrettyPrint(parallelized)}")
 //    println(s"tree:\n${PrettyPrint(codeTree)}")
 //    println(s"result:\n${show(expr)}")
-    expr
+    c.typecheck(q"""
+       import _root_.parallelfor.Parallelizable.ParallelizableOps
+       $expr
+     """)
   }
 
   private def tupleConstructor(args: List[Tree]) =
@@ -188,8 +183,8 @@ $lhs.flatMap {
         Match(clean(selector), cleanedCases)
       case EmptyTree =>
         EmptyTree
-      case Typed(expr, tpt) =>
-        Typed(clean(expr), clean(tpt))
+      case Typed(expr, _) =>
+        clean(expr)
       case Function(args, body) =>
         Function(args, clean(body))
       case other =>
@@ -269,5 +264,32 @@ $lhs.flatMap {
       c.enclosingPosition,
       message
     )
+  }
+
+  object Map {
+    def unapply(tree: c.Tree): Option[(c.Tree, String, c.Tree)] =
+      matchMethodCall("map").unapply(tree)
+  }
+
+  object FlatMap {
+    def unapply(tree: c.Tree): Option[(c.Tree, String, c.Tree)] =
+      matchMethodCall("flatMap").unapply(tree)
+  }
+
+  def matchMethodCall(methodName: String): PartialFunction[c.Tree, (c.Tree, String, c.Tree)] = {
+    case q"$expr.${TermName(`methodName`)}[..$_](${Lambda(argName, body)})(..$_)" =>
+      (expr, argName, body)
+    case q"$expr.${TermName(`methodName`)}[..$_](${Lambda(argName, body)})" =>
+      (expr, argName, body)
+  }
+
+  object Lambda {
+    def unapply(tree: c.Tree): Option[(String, c.Tree)] =
+      tree match {
+        case Function(List(ValDef(_, TermName(name), _, _)), body) =>
+          Some(name -> body)
+        case _ =>
+          None
+      }
   }
 }

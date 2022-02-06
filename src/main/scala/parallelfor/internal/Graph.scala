@@ -47,13 +47,13 @@ object Algorithm extends scala.App {
 
   def parallelizeNodes[A](nodes: List[List[Labeled[A]]], yieldExpr: A): Parallel[A] =
     nodes match {
-      case set :: tail =>
+      case group :: tail =>
         val effects =
-          set.collect { case Labeled(ident, ExprType.Effect(expr)) =>
+          group.collect { case Labeled(ident, ExprType.Effect(expr)) =>
             ident.name -> expr
-          }
+          }.reverse
 
-        val pure = set.collect { case Labeled(ident, ExprType.Pure(expr)) =>
+        val pure = group.collect { case Labeled(ident, ExprType.Pure(expr)) =>
           ident.name -> expr
         }
 
