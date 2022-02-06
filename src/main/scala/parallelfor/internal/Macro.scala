@@ -35,8 +35,7 @@ class Macro(val c: blackbox.Context) {
     val _ = parallelizable
     def loop(tree: c.Tree, seen: List[String]): Sequential[c.Tree] =
       tree match {
-        case FlatMap(Map(expr, argName, pureBody), _, body) =>
-//        case q"$expr.map[..$_](${Lambda(argName, pureBody)})(..$_).flatMap[..$_](${Lambda(_, body)})(..$_)" =>
+        case MapOrFlatMap(Map(expr, argName, pureBody), _, body) =>
           val assignments            = parsePureAssignments(pureBody, argName :: seen)
           val usedArgs: List[String] = getUsedArgs(expr, seen)
           Sequential.FlatMap(
@@ -47,40 +46,7 @@ class Macro(val c: blackbox.Context) {
             loop(body, (argName :: assignments.map(_.ident)) ++ seen)
           )
 
-        case q"$expr.map[..$_](${Lambda(argName, pureBody)})(..$_).map[..$_](${Lambda(_, body)})(..$_)" =>
-          val assignments            = parsePureAssignments(pureBody, argName :: seen)
-          val usedArgs: List[String] = getUsedArgs(expr, seen)
-          Sequential.FlatMap(
-            expr,
-            usedArgs,
-            argName,
-            assignments,
-            loop(body, (argName :: assignments.map(_.ident)) ++ seen)
-          )
-
-        case Apply(
-              Apply(
-                TypeApply(Select(expr, TermName("flatMap")), _),
-                List(Lambda(argName, body))
-              ),
-              _
-            ) =>
-          val usedArgs: List[String] = getUsedArgs(expr, seen)
-          Sequential.FlatMap(
-            expr,
-            usedArgs,
-            argName,
-            List.empty,
-            loop(body, argName :: seen)
-          )
-
-        case Apply(
-              Apply(
-                TypeApply(Select(expr, TermName("map")), _),
-                List(Lambda(argName, body))
-              ),
-              _
-            ) =>
+        case MapOrFlatMap(expr, argName, body) =>
           val usedArgs: List[String] = getUsedArgs(expr, seen)
           Sequential.FlatMap(
             expr,
@@ -274,6 +240,11 @@ $lhs.flatMap {
   object FlatMap {
     def unapply(tree: c.Tree): Option[(c.Tree, String, c.Tree)] =
       matchMethodCall("flatMap").unapply(tree)
+  }
+
+  object MapOrFlatMap {
+    def unapply(tree: c.Tree): Option[(c.Tree, String, c.Tree)] =
+      Map.unapply(tree) orElse FlatMap.unapply(tree)
   }
 
   def matchMethodCall(methodName: String): PartialFunction[c.Tree, (c.Tree, String, c.Tree)] = {
