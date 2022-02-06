@@ -1,8 +1,7 @@
 package parallelfor
 
-import parallelfor.test.FreeParallel.effect
-import parallelfor.test.ParTrace.zipped
-import parallelfor.test._
+import parallelfor.FreeParallel.{effect, parallelizable}
+import parallelfor.ParTrace.zipped
 import zio.test.{Trace => _, _}
 
 object ParallelSpec extends DefaultRunnableSpec {

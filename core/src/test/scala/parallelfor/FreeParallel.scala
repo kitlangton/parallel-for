@@ -1,4 +1,4 @@
-package parallelfor.test
+package parallelfor
 
 import parallelfor.Parallelizable
 import zio.Zippable
