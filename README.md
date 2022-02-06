@@ -30,8 +30,8 @@ val program =
       users  <- loadUsers
       files  <- loadFiles
       config <- loadConfig
-      _      <- log("Processing result")
       result <- process(users, files, config)
+      _      <- fireTheMissiles
     } yield result
   }
 ```
@@ -41,8 +41,8 @@ The `par` macro will rewrite the above program to—*essentially*—the followin
 ```scala
 val program =
   for {
-    (users, files, config)  <- loadUsers zipPar loadFiles zipPar loadConfig
-    (_, result)             <- log("Processing result") zipPar process(users, files, config)
+    (users, files, config, _) <- loadUsers zipPar loadFiles zipPar loadConfig zipPar fireTheMissiles
+    result                    <- process(users, files, config)
   } yield result
 ```
 
