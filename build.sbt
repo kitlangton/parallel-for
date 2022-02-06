@@ -14,6 +14,7 @@ val sharedSettings = Seq(
       url = url("https://github.com/kitlangton")
     )
   ),
+  scalacOptions ++= Seq("-Ywarn-unused:patvars"),
   testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
   libraryDependencies ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
@@ -23,29 +24,58 @@ val sharedSettings = Seq(
         List()
     }
   },
+  libraryDependencies ++= Seq(
+    "dev.zio"       %% "zio-test"       % zio2Version % Test,
+    "dev.zio"       %% "zio-test-sbt"   % zio2Version % Test,
+    "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
+    "org.scala-lang" % "scala-compiler" % scalaVersion.value
+  ),
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, n)) if n <= 12 => List("-Ypartial-unification")
-      case _                       => List("-Ymacro-annotations", "-Ywarn-unused", "-Wmacros:after")
+      case _                       => List("-Ymacro-annotations")
     }
   }
 )
 
-val zioVersion = "2.0.0-RC2"
+val zio1Version = "1.0.13"
+val zio2Version = "2.0.0-RC2"
 
 lazy val root = (project in file("."))
+  .aggregate(core, zio)
+  .settings(
+    name               := "parallel-for",
+    crossScalaVersions := Nil,
+    skip / publish     := true
+  )
+
+lazy val core = (project in file("core"))
   .settings(
     name := "parallel-for",
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    sharedSettings
+  )
+
+lazy val zio1 = (project in file("zio1"))
+  .settings(
+    name := "parallel-for-zio-1",
     libraryDependencies ++= Seq(
-      "dev.zio"       %% "zio"               % zioVersion,
-      "dev.zio"       %% "zio-test"          % zioVersion % Test,
-      "dev.zio"       %% "zio-test-magnolia" % zioVersion % Test,
-      "dev.zio"       %% "zio-test-sbt"      % zioVersion % Test,
-      "org.scala-lang" % "scala-reflect"     % scalaVersion.value,
-      "org.scala-lang" % "scala-compiler"    % scalaVersion.value
+      "dev.zio" %% "zio" % zio1Version
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     sharedSettings
   )
+  .dependsOn(core)
+
+lazy val zio = (project in file("zio"))
+  .settings(
+    name := "parallel-for-zio",
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio" % zio2Version
+    ),
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    sharedSettings
+  )
+  .dependsOn(core)
 
 testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")

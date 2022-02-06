@@ -4,22 +4,22 @@ import parallelfor.internal.Sequential.PureAssignment
 
 import scala.annotation.tailrec
 
-sealed trait ExprType[+A] {
+private[parallelfor] sealed trait ExprType[+A] {
   def isPure: Boolean = this.isInstanceOf[ExprType.Pure[_]]
 
   def value: A
 }
 
-object ExprType {
+private[parallelfor] object ExprType {
   case class Pure[A](value: A)   extends ExprType[A]
   case class Effect[A](value: A) extends ExprType[A]
 }
 
-final case class Ident(name: String) extends AnyVal
-final case class Node[+A](references: List[Ident], expr: ExprType[A], output: Ident)
-final case class Labeled[+A](ident: Ident, expr: ExprType[A])
+private[parallelfor] final case class Ident(name: String) extends AnyVal
+private[parallelfor] final case class Node[+A](references: List[Ident], expr: ExprType[A], output: Ident)
+private[parallelfor] final case class Labeled[+A](ident: Ident, expr: ExprType[A])
 
-object Algorithm extends scala.App {
+private[parallelfor] object Algorithm extends scala.App {
 
   def collectNodes[A](sequential: Sequential[A]): (List[Node[A]], A) = {
     @tailrec
@@ -107,6 +107,19 @@ object Algorithm extends scala.App {
     loop(nodes, List.empty).reverse
   }
 
-  // println(topSort(nodes).mkString("\n"))
+  def compile[A](par: Parallel[A]): CodeTree[A] =
+    par match {
+      case Parallel.Parallelized(effects0, pureAssignments, body) =>
+        val (args, effects) = effects0.unzip
+        val effect          = effects.map(CodeTree(_)).reduce(_ zipPar _)
+        body match {
+          case Parallel.Parallelized(_, _, _) =>
+            CodeTree.FlatMap(effect, args, pureAssignments, compile(body))
+          case Parallel.Raw(_) =>
+            CodeTree.Map(effect, args, pureAssignments, compile(body))
+        }
+      case Parallel.Raw(expr) =>
+        CodeTree.Value(expr)
+    }
 
 }

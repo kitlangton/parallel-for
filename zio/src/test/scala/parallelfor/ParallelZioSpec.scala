@@ -1,24 +1,26 @@
 package parallelfor
 
-import zio._
-import Parallelizable._
-import parallelfor.test.FreeParallel.effect
+import _root_.zio._
+import parallelfor.interop.zio._
 
-object ParallelizationExample extends ZIOAppDefault {
+object ParallelZioSpec extends ZIOAppDefault {
 
   val example1 =
     par {
       for {
         string <- stringZIO
       } yield string
+
     }
 
   val example2 =
     par {
       for {
-        string <- stringZIO
-        int    <- intZIO
-      } yield string + int
+        _    <- stringZIO
+        _    <- stringZIO
+        _    <- stringZIO
+        int3 <- intZIO
+      } yield int3
     }
 
   val example3 =
@@ -72,7 +74,7 @@ object ParallelizationExample extends ZIOAppDefault {
     }
 
   val run =
-    example7.timed.debug("RESULT")
+    example2.timed.debug("RESULT")
 
   private def delayedEffect[A](name: String)(a: => A) =
     ZIO.debug(s"STARTING $name") *>

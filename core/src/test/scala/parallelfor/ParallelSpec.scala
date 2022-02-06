@@ -1,7 +1,7 @@
 package parallelfor
 
 import parallelfor.test.FreeParallel.effect
-import parallelfor.test.Trace.zipped
+import parallelfor.test.ParTrace.zipped
 import parallelfor.test._
 import zio.test.{Trace => _, _}
 
@@ -17,7 +17,7 @@ object ParallelSpec extends DefaultRunnableSpec {
           }
 
         assertTrue(
-          result.trace == Trace(40),
+          result.trace == ParTrace(40),
           result.execute == 40
         )
       },
@@ -101,7 +101,7 @@ object ParallelSpec extends DefaultRunnableSpec {
             } yield cool
           }
 
-        val expected = Trace(40)
+        val expected = ParTrace(40)
 
         assertTrue(
           result.trace == expected,
@@ -138,7 +138,7 @@ object ParallelSpec extends DefaultRunnableSpec {
             } yield name.toUpperCase
           }
 
-        val expected = Trace("Hello, Bobo!")
+        val expected = ParTrace("Hello, Bobo!")
 
         assertTrue(
           result.trace == expected,

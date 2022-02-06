@@ -1,6 +1,6 @@
 package parallelfor.internal
 
-sealed trait CodeTree[+A] extends Product with Serializable { self =>
+private[parallelfor] sealed trait CodeTree[+A] extends Product with Serializable { self =>
 
   def zipPar[A1 >: A](that: CodeTree[A1]): CodeTree[A1] =
     CodeTree.ZipPar(self, that)

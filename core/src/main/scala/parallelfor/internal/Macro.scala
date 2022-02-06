@@ -5,7 +5,7 @@ import parallelfor.internal.Sequential.PureAssignment
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox
 
-class Macro(val c: blackbox.Context) {
+private[parallelfor] class Macro(val c: blackbox.Context) {
   import c.universe._
 
   def parsePureAssignments(tree: c.Tree, seen: List[String]): List[PureAssignment[c.Tree]] =
@@ -80,9 +80,9 @@ class Macro(val c: blackbox.Context) {
     val sorted             = Algorithm.compress(sorted0)
     val parallelized       = Algorithm.parallelizeNodes(sorted, yieldExpr)
 
-    val codeTree = compile(parallelized)
+    val codeTree = Algorithm.compile(parallelized)
     val result = codeTree.fold[c.Tree](identity)(
-      ifZipPar = (lhs, rhs) => q"$lhs zipPar $rhs",
+      ifZipPar = (lhs, rhs) => q"$parallelizable.zipPar($lhs, $rhs)",
       ifMap = (lhs, args, pure, rhs) => q"""
 $lhs.map { 
   ${functionBody(args, Block(makeValDefs(pure), rhs))} 
@@ -110,11 +110,8 @@ $lhs.flatMap {
   }
 
   private def tupleConstructor(args: List[Tree]) =
-    args match {
-      case List(head) =>
-        head
-      case args =>
-        Apply(Select(Ident(TermName("scala")), TermName(s"Tuple${args.length}")), args)
+    args.tail.foldLeft(args.head) { (acc, arg) =>
+      q"($acc, $arg)"
     }
 
   private def makeBinder(name: String) =

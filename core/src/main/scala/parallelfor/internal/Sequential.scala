@@ -1,8 +1,8 @@
 package parallelfor.internal
 
-sealed trait Sequential[+A]
+private[parallelfor] sealed trait Sequential[+A]
 
-object Sequential {
+private[parallelfor] object Sequential {
 
   final case class PureAssignment[+A](ident: String, expr: A, usedArgs: List[String])
 

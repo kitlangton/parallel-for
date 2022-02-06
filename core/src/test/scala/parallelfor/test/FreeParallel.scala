@@ -9,9 +9,9 @@ sealed trait FreeParallel[-R, +E, +A] extends Product with Serializable { self =
 
   def execute: A = traceImpl._2
 
-  def trace: Trace = traceImpl._1
+  def trace: ParTrace = traceImpl._1
 
-  def traceImpl: (Trace, A)
+  def traceImpl: (ParTrace, A)
 
   def zipPar[R1 <: R, E1 >: E, B](that: FreeParallel[R1, E1, B])(implicit
       zippable: Zippable[A, B]
@@ -31,7 +31,7 @@ object FreeParallel {
 
   final case class ZipPar[-R, +E, +A, +B](left: FreeParallel[R, E, A], right: FreeParallel[R, E, B])
       extends FreeParallel[R, E, (A, B)] {
-    override def traceImpl: (Trace, (A, B)) = {
+    override def traceImpl: (ParTrace, (A, B)) = {
       val (lhsTrace, lhsValue) = left.traceImpl
       val (rhsTrace, rhsValue) = right.traceImpl
       val trace                = lhsTrace zipPar rhsTrace
@@ -42,17 +42,17 @@ object FreeParallel {
   final case class FlatMap[-R, +E, A, +B](fa: FreeParallel[R, E, A], f: A => FreeParallel[R, E, B])
       extends FreeParallel[R, E, B] {
 
-    override def traceImpl: (Trace, B) = {
+    override def traceImpl: (ParTrace, B) = {
       val (faTrace, faValue) = fa.traceImpl
       val (fbTrace, fbValue) = f(faValue).traceImpl
-      val trace              = Trace.FlatMap(faTrace, fbTrace)
+      val trace              = ParTrace.FlatMap(faTrace, fbTrace)
       (trace, fbValue)
     }
   }
 
   final case class Map[-R, +E, A, +B](fa: FreeParallel[R, E, A], f: A => B) extends FreeParallel[R, E, B] {
 
-    override def traceImpl: (Trace, B) = {
+    override def traceImpl: (ParTrace, B) = {
       val (faTrace, faValue) = fa.traceImpl
       (faTrace, f(faValue))
     }
@@ -60,17 +60,12 @@ object FreeParallel {
 
   final case class Succeed[A](value: A) extends FreeParallel[Any, Nothing, A] {
 
-    override def traceImpl: (Trace, A) =
-      (Trace.Value(value), value)
+    override def traceImpl: (ParTrace, A) =
+      (ParTrace.Value(value), value)
   }
 
   implicit val parallelizable: Parallelizable[FreeParallel] =
     new Parallelizable[FreeParallel] {
-
-      override def zipPar[R, E, A, B](left: FreeParallel[R, E, A], right: FreeParallel[R, E, B])(implicit
-          zippable: Zippable[A, B]
-      ): FreeParallel[R, E, zippable.Out] =
-        ZipPar(left, right).map { case (a, b) => zippable.zip(a, b) }
 
       override def flatMap[R, E, A, B](
           fa: FreeParallel[R, E, A],
@@ -80,5 +75,11 @@ object FreeParallel {
 
       override def map[R, E, A, B](fa: FreeParallel[R, E, A], f: A => B): FreeParallel[R, E, B] =
         fa.map(f)
+
+      override def zipPar[R, E, A, B](
+          left: FreeParallel[R, E, A],
+          right: FreeParallel[R, E, B]
+      ): FreeParallel[R, E, (A, B)] =
+        left.zipPar(right)
     }
 }

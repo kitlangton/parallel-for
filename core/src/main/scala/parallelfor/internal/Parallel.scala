@@ -1,8 +1,8 @@
 package parallelfor.internal
 
-sealed trait Parallel[+A] extends Product with Serializable
+private[parallelfor] sealed trait Parallel[+A] extends Product with Serializable
 
-object Parallel {
+private[parallelfor] object Parallel {
   final case class Parallelized[A](
       effects: List[(String, A)],
       pure: List[(String, A)],

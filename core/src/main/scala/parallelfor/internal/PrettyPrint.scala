@@ -1,18 +1,9 @@
 package parallelfor.internal
 
-import zio.{Chunk, NonEmptyChunk}
-
-trait PrettyPrintVersionSpecific {
+private[parallelfor] object PrettyPrint {
   def labels(product: Product): Iterator[String] = product.productElementNames
-}
 
-object PrettyPrint extends PrettyPrintVersionSpecific {
   def apply(any: Any): String = any match {
-    //    case null => "null"
-    case nonEmptyChunk: NonEmptyChunk[_] =>
-      nonEmptyChunk.map(PrettyPrint.apply).mkString("NonEmptyChunk(", ", ", ")")
-    case chunk: Chunk[_] =>
-      chunk.map(PrettyPrint.apply).mkString("Chunk(", ", ", ")")
     case array: Array[_] =>
       array.map(PrettyPrint.apply).mkString("Array(", ", ", ")")
 
