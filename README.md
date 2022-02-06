@@ -33,8 +33,11 @@ The `par` macro will rewrite the above program to—*essentially*—the followin
 
 ## TODO
 
+- [x] Work with ZIO and ZManaged
+- [x] Maximize parallelization with topological sorting
+- [x] Get it to work with val assignments inside of for-comprehensions
 - [ ] Generalize to work with any zippable structure (zio, cats, monix, etc.)
-- [ ] Get it to work with val assignments inside of for-comprehensions
+- [ ] Fix withFilter interaction
 - [ ] Test the heck out of it
 - [ ] Cross-building for JVM, JS, and Native
 - [ ] Get it to work with Scala 3
