@@ -32,8 +32,9 @@ val sharedSettings = Seq(
   }
 )
 
-val zio1Version = "1.0.13"
-val zio2Version = "2.0.0-RC2"
+val zio1Version     = "1.0.13"
+val zio2Version     = "2.0.0-RC2"
+val zioQueryVersion = "0.3.0-RC2"
 
 lazy val root = (project in file("."))
   .aggregate(core, zio)
@@ -74,6 +75,19 @@ lazy val zio = (project in file("zio"))
     name := "parallel-for-zio",
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio"          % zio2Version,
+      "dev.zio" %% "zio-test"     % zio2Version % Test,
+      "dev.zio" %% "zio-test-sbt" % zio2Version % Test
+    ),
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    sharedSettings
+  )
+  .dependsOn(core)
+
+lazy val zioQuery = (project in file("zio-query"))
+  .settings(
+    name := "parallel-for-zio-query",
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio-query"    % zioQueryVersion,
       "dev.zio" %% "zio-test"     % zio2Version % Test,
       "dev.zio" %% "zio-test-sbt" % zio2Version % Test
     ),
