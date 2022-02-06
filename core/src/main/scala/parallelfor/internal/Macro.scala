@@ -102,7 +102,7 @@ $lhs.flatMap {
 //    println(s"compressed: ${sorted.mkString("\n")}")
 //    println(s"parallelized:\n${PrettyPrint(parallelized)}")
 //    println(s"tree:\n${PrettyPrint(codeTree)}")
-    println(s"result:\n${show(expr)}")
+//    println(s"result:\n${show(expr)}")
     c.typecheck(q"""
        import _root_.parallelfor.Parallelizable.ParallelizableOps
        $expr
