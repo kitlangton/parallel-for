@@ -1,4 +1,4 @@
-package forallel.internal.forallel
+package parallelfor
 
 import zio.{ZIO, ZManaged, Zippable}
 

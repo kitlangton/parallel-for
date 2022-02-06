@@ -1,16 +1,16 @@
-package forallel.internal
+package parallelfor.internal
 
 sealed trait Sequential[+A]
 
 object Sequential {
-  // lhs(string, int) flatMap { bodyArg =>
-  //   body
-  // }
+
+  final case class PureAssignment[+A](ident: String, expr: A, usedArgs: List[String])
+
   final case class FlatMap[A](
       lhs: A,
       usedArgs: List[String],
       bodyArg: String,
-      pureAssignments: List[(String, A)],
+      pureAssignments: List[PureAssignment[A]],
       body: Sequential[A]
   ) extends Sequential[A]
 

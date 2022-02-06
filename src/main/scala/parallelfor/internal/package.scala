@@ -1,7 +1,7 @@
-package forallel
+package parallelfor
 
-import forallel.internal.Sequential
-import forallel.internal.Parallel
+import parallelfor.internal.Sequential
+import parallelfor.internal.Parallel
 
 // https://contributors.scala-lang.org/t/for-syntax-for-parallel-computations-afor-applicative-for-comprehension/4474/19
 // https://gitlab.haskell.org/ghc/ghc/-/wikis/applicative-do
@@ -21,11 +21,11 @@ package object internal {
             Parallel.Parallelized(
               effects = effects,
               pure = pure,
-              body = loop(sequential, List.empty, pure0)
+              body = loop(sequential, List.empty, pure0.map(p => (p.ident, p.expr)))
             )
           } else {
             val newEffects = (bodyArg, lhs) :: effects
-            loop(body, newEffects, pure0 ++ pure)
+            loop(body, newEffects, pure0.map(p => (p.ident, p.expr)) ++ pure)
           }
         case Sequential.Raw(expr) =>
           if (effects.nonEmpty || pure.nonEmpty)

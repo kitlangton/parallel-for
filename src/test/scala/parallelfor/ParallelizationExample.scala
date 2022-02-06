@@ -1,19 +1,18 @@
-package forallel
+package parallelfor
 
 import zio._
-import forallel.Parallelize.par
 
 object ParallelizationExample extends ZIOAppDefault {
-  import forallel.internal.forallel.Parallelizable._
 
   val program =
     par {
       for {
         string <- stringZIO
-        int    <- intZIO
-        result <- consumes(string, int)
+        fancy   = { println("WOW"); string }
+        result <- consumes(fancy, 10)
         int3   <- intZIO
-      } yield result.take(int3)
+        lovely  = { println(s"hello $result"); int3 }
+      } yield result.take(lovely)
     }
 
   val run =
@@ -21,7 +20,7 @@ object ParallelizationExample extends ZIOAppDefault {
 
   def delayedEffect[A](name: String)(a: => A): ZManaged[Clock, Nothing, A] =
     (ZIO.debug(s"STARTING $name") *>
-      ZIO.sleep(2.seconds).as(a).debug(s"COMPLETED $name with result")).toManaged_
+      ZIO.sleep(2.seconds).as(a).debug(s"COMPLETED $name with result")).toManaged
 
   lazy val stringZIO: ZManaged[Clock, NumberFormatException, String] =
     delayedEffect("stringZIO")("LO")

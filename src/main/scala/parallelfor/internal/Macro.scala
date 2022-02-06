@@ -1,30 +1,22 @@
-package forallel
+package parallelfor.internal
 
-import forallel.internal.forallel.Parallelizable
-import forallel.internal.{CodeTree, Parallel, PrettyPrint, Sequential, compile, parallelizeParsed}
-import zio._
+import parallelfor.internal.Sequential.PureAssignment
 
 import scala.language.experimental.macros
 import scala.reflect.macros.blackbox
-import forallel.internal.Algorithm
-import scala.collection.immutable
-
-object Parallelize {
-  def par[F[-_, +_, +_], R, E, A](zio: F[R, E, A])(implicit parallelizable: Parallelizable[F]): F[R, E, A] =
-    macro Macro.parallelizeImpl[F, R, E, A]
-}
 
 class Macro(val c: blackbox.Context) {
   import c.universe._
 
-  def parsePureAssignments(tree: c.Tree): List[(String, c.Tree)] =
+  def parsePureAssignments(tree: c.Tree, seen: List[String]): List[PureAssignment[c.Tree]] =
     tree match {
       case Function(_, body) =>
-        parsePureAssignments(body)
+        parsePureAssignments(body, seen)
       case Block(stats, _) =>
-        stats.flatMap(t => parsePureAssignments(t))
+        stats.flatMap(t => parsePureAssignments(t, seen))
       case ValDef(_, TermName(name), _, body) =>
-        List(name -> body)
+        val used = getUsedArgs(tree, seen)
+        List(PureAssignment(name, body, used))
       case other =>
         List.empty
     }
@@ -45,19 +37,31 @@ class Macro(val c: blackbox.Context) {
     }
 
   def parallelizeImpl[F[-_, +_, +_], R, E, A](
-      zio: c.Tree
+      effect: c.Tree
   )(parallelizable: c.Tree): c.Tree = {
+    val _ = parallelizable
     def loop(tree: c.Tree, seen: List[String]): Sequential[c.Tree] =
       tree match {
         case q"$expr.map[..$_](${Lambda(argName, pureBody)})(..$_).flatMap[..$_](${Lambda(_, body)})(..$_)" =>
-          val assignments            = parsePureAssignments(pureBody)
+          val assignments            = parsePureAssignments(pureBody, argName :: seen)
           val usedArgs: List[String] = getUsedArgs(expr, seen)
           Sequential.FlatMap(
             expr,
             usedArgs,
             argName,
             assignments,
-            loop(body, (argName :: assignments.map(_._1)) ++ seen)
+            loop(body, (argName :: assignments.map(_.ident)) ++ seen)
+          )
+
+        case q"$expr.map[..$_](${Lambda(argName, pureBody)})(..$_).map[..$_](${Lambda(_, body)})(..$_)" =>
+          val assignments            = parsePureAssignments(pureBody, argName :: seen)
+          val usedArgs: List[String] = getUsedArgs(expr, seen)
+          Sequential.FlatMap(
+            expr,
+            usedArgs,
+            argName,
+            assignments,
+            loop(body, (argName :: assignments.map(_.ident)) ++ seen)
           )
 
         case Apply(
@@ -99,12 +103,18 @@ class Macro(val c: blackbox.Context) {
           Sequential.Raw(other)
       }
 
-    val sequential: Sequential[c.Tree] = loop(zio, List.empty)
+    val sequential: Sequential[c.Tree] = loop(effect, List.empty)
 
     val (nodes, yieldExpr) = Algorithm.compileNodes(sequential)
-    val sorted             = Algorithm.topSort(nodes)
-    val parallelized       = Algorithm.parallelizeNodes(sorted, yieldExpr)
-    // val parallelized: Parallel[c.Tree] = parallelizeParsed(sequential)
+    val sorted0            = Algorithm.topSort(nodes)
+    val sorted             = Algorithm.compress(sorted0)
+    println(s"nodes: ${nodes.mkString("\n")}")
+    println(s"sorted: ${sorted0.mkString("\n")}")
+    val parallelized = Algorithm.parallelizeNodes(sorted, yieldExpr)
+
+    println(s"sequential:\n${PrettyPrint(sequential)}")
+    println(s"parallelized:\n${PrettyPrint(parallelized)}")
+
     val structure: CodeTree[c.Tree] = compile(parallelized)
     val result: c.Tree = structure.fold[c.Tree](identity)(
       ifZipPar = (lhs, rhs) => q"$lhs zipPar $rhs",
@@ -121,8 +131,6 @@ $lhs.flatMap {
     )
 
     val expr = clean(result)
-    println(s"sequential:\n${PrettyPrint(sequential)}")
-    println(s"parallelized:\n${PrettyPrint(parallelized)}")
     println(s"tree:\n${PrettyPrint(structure)}")
     println(s"result:\n${show(expr)}")
     expr
@@ -178,7 +186,10 @@ $lhs.flatMap {
         Match(clean(selector), cleanedCases)
       case EmptyTree =>
         EmptyTree
+      case Typed(expr, tpt) =>
+        Typed(clean(expr), clean(tpt))
       case other =>
+        renderError(other)
         other
     }
 
@@ -212,7 +223,14 @@ $lhs.flatMap {
       case This(_) =>
         List.empty
 
-      case _ =>
+      case Typed(t1, t2) =>
+        getUsedArgs(t1, seen) ++ getUsedArgs(t2, seen)
+
+      case TypeTree() =>
+        List.empty
+
+      case other =>
+        renderError(other)
         List.empty
     }
 

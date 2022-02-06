@@ -1,4 +1,4 @@
-package forallel.internal
+package parallelfor.internal
 
 sealed trait Parallel[+A] extends Product with Serializable
 

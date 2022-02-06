@@ -1,20 +1,9 @@
-package forallel.internal
+package parallelfor.internal
 
+import parallelfor.internal.Sequential.PureAssignment
 import zio._
 
-object Example {
-  val effect =
-    for {
-      int    <- ZIO.succeed(1)
-      string <- ZIO.succeed("Hello")
-      both   <- ZIO.succeed(int + string.length)
-      int2   <- ZIO.succeed(10)
-    } yield int2 + both
-}
-
-// buildable Nodes
-// built Nodes
-// topological sort
+import scala.annotation.tailrec
 
 sealed trait ExprType[+A] {
   def value: A
@@ -51,16 +40,20 @@ object Algorithm extends scala.App {
     )
 
   def compileNodes[A](sequential: Sequential[A]): (List[Node[A]], A) = {
+    @tailrec
     def loop(sequential: Sequential[A], acc: List[Node[A]]): (List[Node[A]], A) =
       sequential match {
         case Sequential.FlatMap(lhs, usedArgs, bodyArg, pureAssignments, body) =>
+          val effectNode = Node(usedArgs.map(Ident(_)), ExprType.Effect(lhs), Ident(bodyArg))
+
+          val pureNodes = pureAssignments.map { //
+            case PureAssignment(ident, expr, usedArgs) =>
+              Node(usedArgs.map(Ident(_)), ExprType.Pure(expr), Ident(ident))
+          }
+
           loop(
             body,
-            Node(
-              usedArgs.map(Ident(_)),
-              ExprType.Effect(lhs),
-              Ident(bodyArg)
-            ) :: acc
+            effectNode :: pureNodes ++ acc
           )
 
         case Sequential.Raw(expr) =>
@@ -73,13 +66,18 @@ object Algorithm extends scala.App {
   def parallelizeNodes[A](nodes: List[Set[Labeled[A]]], yieldExpr: A): Parallel[A] =
     nodes match {
       case set :: tail =>
-        val effects = set.map { case Labeled(ident, ExprType.Effect(expr)) =>
+        val effects =
+          set.collect { case Labeled(ident, ExprType.Effect(expr)) =>
+            ident.name -> expr
+          }.toList
+
+        val pure = set.collect { case Labeled(ident, ExprType.Pure(expr)) =>
           ident.name -> expr
         }.toList
 
         Parallel.Parallelized(
           effects,
-          Nil,
+          pure,
           parallelizeNodes(tail, yieldExpr)
         )
 
@@ -92,6 +90,31 @@ object Algorithm extends scala.App {
   // b   e
   // a c d
   // 0 1 2
+
+  // collapse adjacent sets if the first set contains only pure effects
+  def compress[A](nodes: List[Set[Labeled[A]]]): List[Set[Labeled[A]]] = {
+    @tailrec
+    def loop(nodes: List[Set[Labeled[A]]], acc: List[Set[Labeled[A]]]): List[Set[Labeled[A]]] =
+      nodes match {
+        case a :: b :: tail =>
+          val bIsPure = b.forall {
+            case Labeled(_, ExprType.Pure(_)) => true
+            case _                            => false
+          }
+
+          if (bIsPure) loop(tail, (a ++ b) :: acc)
+          else loop(b :: tail, a :: acc)
+
+        case a :: tail =>
+          loop(tail, a :: acc)
+
+        case Nil =>
+          acc
+      }
+
+    loop(nodes, List.empty).reverse
+  }
+
   def topSort[A](nodes: List[Node[A]]): List[Set[Labeled[A]]] =
     if (nodes.isEmpty) List.empty
     else {
@@ -102,7 +125,7 @@ object Algorithm extends scala.App {
         Node(filteredReferences, expr, output)
       }
       val labeledSet: Set[Labeled[A]] =
-        nodesWithNoDependencies.map { case Node(references, expr, output) =>
+        nodesWithNoDependencies.map { case Node(_, expr, output) =>
           Labeled(output, expr)
         }.toSet
       labeledSet :: topSort(remaining)
