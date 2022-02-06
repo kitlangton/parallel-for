@@ -20,26 +20,30 @@ libraryDependencies ++= Seq(
 Wrapping a for-comprehension in `par` will automatically parallelize it at compile time. 
 
 ```scala
-  val program =
-    par {
-      for {
-        users  <- loadUsers
-        files  <- loadFiles
-        config <- loadConfig
-        _      <- log("Processing result")
-        result <- process(users, files, config)
-      } yield result
-    }
+import parallelfor._
+import parallelfor.interop.zio._
+import zio._
+
+val program =
+  par {
+    for {
+      users  <- loadUsers
+      files  <- loadFiles
+      config <- loadConfig
+      _      <- log("Processing result")
+      result <- process(users, files, config)
+    } yield result
+  }
 ```
 
 The `par` macro will rewrite the above program to—*essentially*—the following:
 
 ```scala
-  val program =
-    for {
-      (users, files, config)  <- loadUsers zipPar loadFiles zipPar loadConfig
-      (_, result)             <- log("Processing result") zipPar process(users, files, config)
-    } yield result
+val program =
+  for {
+    (users, files, config)  <- loadUsers zipPar loadFiles zipPar loadConfig
+    (_, result)             <- log("Processing result") zipPar process(users, files, config)
+  } yield result
 ```
 
 ***Neato!***
@@ -49,12 +53,12 @@ The `par` macro will rewrite the above program to—*essentially*—the followin
 - [x] Work with ZIO and ZManaged
 - [x] Maximize parallelization with topological sorting
 - [x] Get it to work with val assignments inside of for-comprehensions
-- [ ] Generalize to work with any zippable structure (zio, cats, monix, etc.)
+- [x] Set up publishing
+- [x] Generalize to work with any zippable structure (implement against `Parallelizable` type-class)
 - [ ] Fix withFilter interaction
-- [ ] Test the heck out of it
-- [ ] Cross-building for JVM, JS, and Native
+- [ ] Cross-build for JS and Native
+- [ ] Cross-build against 2.11/2.12
 - [ ] Get it to work with Scala 3
-- [ ] Set up publishing
 
 
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/io.github.kitlangton/parallel-for_2.13.svg "Sonatype Releases"
