@@ -163,5 +163,20 @@ object ParallelSpec extends DefaultRunnableSpec {
           result.execute == "BYE, BOBO!123"
         )
       }
+//      test("pattern matching in binding") {
+//        val result =
+//          par {
+//            for {
+//              s"Hello, $name!" <- effect("Hello, Bobo!")
+//            } yield name
+//          }
+//
+//        val expected = zipped("Hello, Bobo!", 123) >>> "Bye, Bobo!"
+//
+//        assertTrue(
+//          result.trace == expected,
+//          result.execute == "BYE, BOBO!123"
+//        )
+//      }
     )
 }

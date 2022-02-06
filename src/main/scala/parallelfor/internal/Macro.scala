@@ -28,9 +28,19 @@ class Macro(val c: blackbox.Context) {
       ValDef(NoMods, TermName(name), TypeTree(), tree)
     }
 
+  def assertNoWithFilter(tree: c.Tree): Unit =
+    if (show(tree).contains("withFilter")) {
+      c.abort(
+        c.enclosingPosition,
+        "Destructuring on the left-hand-side of a `<-` (a.k.a. `withFilter`) is not supported yet. Sorry!\n" +
+          "First assign to an intermediate variable, then destructure with `=`."
+      )
+    }
+
   def parallelizeImpl[F[-_, +_, +_], R, E, A](
       effect: c.Tree
   )(parallelizable: c.Tree): c.Tree = {
+    assertNoWithFilter(effect)
 //    renderError(effect)
     val _ = parallelizable
     def loop(tree: c.Tree, seen: List[String]): Sequential[c.Tree] =
@@ -92,7 +102,7 @@ $lhs.flatMap {
 //    println(s"compressed: ${sorted.mkString("\n")}")
 //    println(s"parallelized:\n${PrettyPrint(parallelized)}")
 //    println(s"tree:\n${PrettyPrint(codeTree)}")
-//    println(s"result:\n${show(expr)}")
+    println(s"result:\n${show(expr)}")
     c.typecheck(q"""
        import _root_.parallelfor.Parallelizable.ParallelizableOps
        $expr
@@ -132,8 +142,8 @@ $lhs.flatMap {
         Select(clean(tree), name)
       case TypeApply(tree, args) =>
         TypeApply(clean(tree), args.map(t => clean(t)))
-      case TypeTree() =>
-        TypeTree()
+      case t @ TypeTree() =>
+        t
       case Block(stats, body) =>
         Block(stats.map(t => clean(t)), clean(body))
       case ValDef(mods, name, tpt, rhs) =>
@@ -149,7 +159,7 @@ $lhs.flatMap {
         Match(clean(selector), cleanedCases)
       case EmptyTree =>
         EmptyTree
-      case Typed(expr, _) =>
+      case Typed(expr, tpe) =>
         clean(expr)
       case Function(args, body) =>
         Function(args, clean(body))

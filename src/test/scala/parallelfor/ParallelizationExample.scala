@@ -1,8 +1,8 @@
 package parallelfor
 
 import zio._
-
 import Parallelizable._
+import parallelfor.test.FreeParallel.effect
 
 object ParallelizationExample extends ZIOAppDefault {
 
@@ -55,17 +55,24 @@ object ParallelizationExample extends ZIOAppDefault {
   val example6 =
     par {
       for {
-        string       <- stringZIO
-        int          <- intZIO
-        s"hool $cool" = int + string
-        result       <- consumes(string, int)
-        int2         <- intZIO
-        nice          = result + int2
+        string         <- stringZIO
+        s"LO AND $cool" = string
+        int            <- intZIO
+        result         <- consumes(string, int)
+        int2           <- intZIO
+        nice            = result + int2
       } yield cool + nice + 10
     }
 
+  val example7 =
+    par {
+      for {
+        r <- ZIO.succeed("Hello, Bobo!")
+      } yield r
+    }
+
   val run =
-    example2.timed.debug("RESULT")
+    example7.timed.debug("RESULT")
 
   private def delayedEffect[A](name: String)(a: => A) =
     ZIO.debug(s"STARTING $name") *>
