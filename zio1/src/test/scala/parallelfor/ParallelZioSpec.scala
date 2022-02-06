@@ -1,9 +1,10 @@
 package parallelfor
 
 import _root_.zio._
-import parallelfor.interop.zio._
+import parallelfor.interop.zio1._
+import zio.duration.durationInt
 
-object ParallelZioSpec extends ZIOAppDefault {
+object ParallelZioSpec extends App {
 
   val example1 =
     par {
@@ -73,8 +74,8 @@ object ParallelZioSpec extends ZIOAppDefault {
       } yield r
     }
 
-  val run =
-    example1 *> example2 *> example3 *> example4 *> example5 *> example6 *> example7
+  def run(args: List[String]) =
+    (example1 *> example2 *> example3 *> example4 *> example5 *> example6 *> example7).exitCode
 
   private def delayedEffect[A](name: String)(a: => A) =
     ZIO.debug(s"STARTING $name") *>

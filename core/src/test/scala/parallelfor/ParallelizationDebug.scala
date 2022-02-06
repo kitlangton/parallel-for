@@ -1,6 +1,5 @@
 package parallelfor
 
-//import parallelfor.Parallelizable._
 import zio._
 
 object ParallelizationDebug extends ZIOAppDefault {

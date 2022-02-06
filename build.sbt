@@ -24,12 +24,6 @@ val sharedSettings = Seq(
         List()
     }
   },
-  libraryDependencies ++= Seq(
-    "dev.zio"       %% "zio-test"       % zio2Version % Test,
-    "dev.zio"       %% "zio-test-sbt"   % zio2Version % Test,
-    "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
-    "org.scala-lang" % "scala-compiler" % scalaVersion.value
-  ),
   Compile / scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
       case Some((2, n)) if n <= 12 => List("-Ypartial-unification")
@@ -52,6 +46,12 @@ lazy val root = (project in file("."))
 lazy val core = (project in file("core"))
   .settings(
     name := "parallel-for",
+    libraryDependencies ++= Seq(
+      "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
+      "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+      "dev.zio"       %% "zio-test"       % zio2Version % Test,
+      "dev.zio"       %% "zio-test-sbt"   % zio2Version % Test
+    ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     sharedSettings
   )
@@ -60,7 +60,9 @@ lazy val zio1 = (project in file("zio1"))
   .settings(
     name := "parallel-for-zio-1",
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio" % zio1Version
+      "dev.zio" %% "zio"          % zio1Version,
+      "dev.zio" %% "zio-test"     % zio1Version % Test,
+      "dev.zio" %% "zio-test-sbt" % zio1Version % Test
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     sharedSettings
@@ -71,7 +73,9 @@ lazy val zio = (project in file("zio"))
   .settings(
     name := "parallel-for-zio",
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio" % zio2Version
+      "dev.zio" %% "zio"          % zio2Version,
+      "dev.zio" %% "zio-test"     % zio2Version % Test,
+      "dev.zio" %% "zio-test-sbt" % zio2Version % Test
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     sharedSettings
