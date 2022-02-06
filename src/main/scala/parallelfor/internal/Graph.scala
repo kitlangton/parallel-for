@@ -1,11 +1,12 @@
 package parallelfor.internal
 
 import parallelfor.internal.Sequential.PureAssignment
-import zio._
 
 import scala.annotation.tailrec
 
 sealed trait ExprType[+A] {
+  def isPure: Boolean = this.isInstanceOf[ExprType.Pure[_]]
+
   def value: A
 }
 
@@ -14,32 +15,13 @@ object ExprType {
   case class Effect[A](value: A) extends ExprType[A]
 }
 
-final case class Ident(name: String)
+final case class Ident(name: String) extends AnyVal
 final case class Node[+A](references: List[Ident], expr: ExprType[A], output: Ident)
-final case class Graph[+A](nodes: List[Node[A]])
-case class Labeled[+A](ident: Ident, expr: ExprType[A])
+final case class Labeled[+A](ident: Ident, expr: ExprType[A])
 
 object Algorithm extends scala.App {
 
-  val effect =
-    for {
-      int    <- ZIO.succeed(1)
-      string <- ZIO.succeed("Hello")
-      hello   = string.length + int
-      both   <- ZIO.succeed(hello)
-      int2   <- ZIO.succeed(10)
-    } yield int2 + both
-
-  val nodes =
-    List(
-      Node(List(Ident("string"), Ident("int")), ExprType.Pure("string.length + int"), Ident("hello")),
-      Node(List.empty, ExprType.Effect("ZIO.succeed(1)"), Ident("int")),
-      Node(List.empty, ExprType.Effect("ZIO.succeed(\"Hello\")"), Ident("string")),
-      Node(List(Ident("hello")), ExprType.Effect("ZIO.succeed(int + string.length)"), Ident("both")),
-      Node(List.empty, ExprType.Effect("ZIO.succeed(10)"), Ident("int2"))
-    )
-
-  def compileNodes[A](sequential: Sequential[A]): (List[Node[A]], A) = {
+  def collectNodes[A](sequential: Sequential[A]): (List[Node[A]], A) = {
     @tailrec
     def loop(sequential: Sequential[A], acc: List[Node[A]]): (List[Node[A]], A) =
       sequential match {
@@ -63,17 +45,17 @@ object Algorithm extends scala.App {
     loop(sequential, List.empty)
   }
 
-  def parallelizeNodes[A](nodes: List[Set[Labeled[A]]], yieldExpr: A): Parallel[A] =
+  def parallelizeNodes[A](nodes: List[List[Labeled[A]]], yieldExpr: A): Parallel[A] =
     nodes match {
       case set :: tail =>
         val effects =
           set.collect { case Labeled(ident, ExprType.Effect(expr)) =>
             ident.name -> expr
-          }.toList
+          }
 
         val pure = set.collect { case Labeled(ident, ExprType.Pure(expr)) =>
           ident.name -> expr
-        }.toList
+        }
 
         Parallel.Parallelized(
           effects,
@@ -85,25 +67,16 @@ object Algorithm extends scala.App {
         Parallel.Raw(yieldExpr)
     }
 
-  // Set[(Ident, A])]
-  //
-  // b   e
-  // a c d
-  // 0 1 2
-
-  // collapse adjacent sets if the first set contains only pure effects
-  def compress[A](nodes: List[Set[Labeled[A]]]): List[Set[Labeled[A]]] = {
+  // collapse adjacent stages of all pure nodes
+  def compress[A](nodes: List[List[Labeled[A]]]): List[List[Labeled[A]]] = {
     @tailrec
-    def loop(nodes: List[Set[Labeled[A]]], acc: List[Set[Labeled[A]]]): List[Set[Labeled[A]]] =
+    def loop(nodes: List[List[Labeled[A]]], acc: List[List[Labeled[A]]]): List[List[Labeled[A]]] =
       nodes match {
         case a :: b :: tail =>
-          val bIsPure = b.forall {
-            case Labeled(_, ExprType.Pure(_)) => true
-            case _                            => false
-          }
-
-          if (bIsPure) loop(tail, (a ++ b) :: acc)
-          else loop(b :: tail, a :: acc)
+          if (b.forall(_.expr.isPure))
+            loop((a ++ b) :: tail, acc)
+          else
+            loop(b :: tail, a :: acc)
 
         case a :: tail =>
           loop(tail, a :: acc)
@@ -115,21 +88,24 @@ object Algorithm extends scala.App {
     loop(nodes, List.empty).reverse
   }
 
-  def topSort[A](nodes: List[Node[A]]): List[Set[Labeled[A]]] =
-    if (nodes.isEmpty) List.empty
-    else {
-      val nodesWithNoDependencies = nodes.filter(_.references.isEmpty)
-      val remaining: List[Node[A]] = nodes.filterNot(_.references.isEmpty).map { case Node(references, expr, output) =>
-        // remove all references to nodesWithNoDependencies
-        val filteredReferences = references.filterNot(nodesWithNoDependencies.map(_.output).contains)
-        Node(filteredReferences, expr, output)
+  def topSort[A](nodes: List[Node[A]]): List[List[Labeled[A]]] = {
+    @tailrec
+    def loop(nodes: List[Node[A]], acc: List[List[Labeled[A]]]): List[List[Labeled[A]]] =
+      if (nodes.isEmpty) acc
+      else {
+        val (ready, pending) = nodes.partition(_.references.isEmpty)
+        val remaining =
+          pending.map { case Node(references, expr, output) =>
+            // remove all references to nodesWithNoDependencies
+            val filteredReferences = references.filterNot(ready.map(_.output).contains)
+            Node(filteredReferences, expr, output)
+          }
+        val labeled = ready.map { case Node(_, expr, output) => Labeled(output, expr) }
+        loop(remaining, labeled :: acc)
       }
-      val labeledSet: Set[Labeled[A]] =
-        nodesWithNoDependencies.map { case Node(_, expr, output) =>
-          Labeled(output, expr)
-        }.toSet
-      labeledSet :: topSort(remaining)
-    }
+
+    loop(nodes, List.empty).reverse
+  }
 
   // println(topSort(nodes).mkString("\n"))
 

@@ -13,7 +13,9 @@ class Macro(val c: blackbox.Context) {
       case Function(_, body) =>
         parsePureAssignments(body, seen)
       case Block(stats, _) =>
-        stats.flatMap(t => parsePureAssignments(t, seen))
+        stats.foldLeft(List.empty[PureAssignment[c.Tree]]) { case (acc, stat) =>
+          acc ++ parsePureAssignments(stat, seen ++ acc.map(_.ident))
+        }
       case ValDef(_, TermName(name), _, body) =>
         val used = getUsedArgs(tree, seen)
         List(PureAssignment(name, body, used))
@@ -105,18 +107,13 @@ class Macro(val c: blackbox.Context) {
 
     val sequential: Sequential[c.Tree] = loop(effect, List.empty)
 
-    val (nodes, yieldExpr) = Algorithm.compileNodes(sequential)
+    val (nodes, yieldExpr) = Algorithm.collectNodes(sequential)
     val sorted0            = Algorithm.topSort(nodes)
     val sorted             = Algorithm.compress(sorted0)
-    println(s"nodes: ${nodes.mkString("\n")}")
-    println(s"sorted: ${sorted0.mkString("\n")}")
-    val parallelized = Algorithm.parallelizeNodes(sorted, yieldExpr)
+    val parallelized       = Algorithm.parallelizeNodes(sorted, yieldExpr)
 
-    println(s"sequential:\n${PrettyPrint(sequential)}")
-    println(s"parallelized:\n${PrettyPrint(parallelized)}")
-
-    val structure: CodeTree[c.Tree] = compile(parallelized)
-    val result: c.Tree = structure.fold[c.Tree](identity)(
+    val codeTree = compile(parallelized)
+    val result = codeTree.fold[c.Tree](identity)(
       ifZipPar = (lhs, rhs) => q"$lhs zipPar $rhs",
       ifMap = (lhs, args, pure, rhs) => q"""
 $lhs.map { 
@@ -130,9 +127,14 @@ $lhs.flatMap {
          """
     )
 
-    val expr = clean(result)
-    println(s"tree:\n${PrettyPrint(structure)}")
-    println(s"result:\n${show(expr)}")
+    val expr = c.untypecheck(clean(result))
+//    println(s"sequential:\n${PrettyPrint(sequential)}")
+//    println(s"nodes: ${nodes.mkString("\n")}")
+//    println(s"sorted: ${sorted0.mkString("\n")}")
+//    println(s"compressed: ${sorted.mkString("\n")}")
+//    println(s"parallelized:\n${PrettyPrint(parallelized)}")
+//    println(s"tree:\n${PrettyPrint(codeTree)}")
+//    println(s"result:\n${show(expr)}")
     expr
   }
 
@@ -188,8 +190,11 @@ $lhs.flatMap {
         EmptyTree
       case Typed(expr, tpt) =>
         Typed(clean(expr), clean(tpt))
+      case Function(args, body) =>
+        Function(args, clean(body))
       case other =>
-        renderError(other)
+//        println("OH")
+//        renderError(other)
         other
     }
 
@@ -229,8 +234,24 @@ $lhs.flatMap {
       case TypeTree() =>
         List.empty
 
+      case Match(lhs, caseDefs) =>
+        getUsedArgs(lhs, seen) ++ caseDefs.flatMap(getUsedArgs(_, seen))
+
+      case CaseDef(pat, guard, body) =>
+        getUsedArgs(pat, seen) ++ getUsedArgs(guard, seen) ++ getUsedArgs(body, seen)
+
+      case UnApply(fun, args) =>
+        getUsedArgs(fun, seen) ++ args.flatMap(getUsedArgs(_, seen))
+
+      case Bind(name, body) =>
+        getUsedArgs(body, seen)
+
+      case EmptyTree =>
+        List.empty
+
       case other =>
-        renderError(other)
+//        println("NOO")
+//        renderError(other)
         List.empty
     }
 

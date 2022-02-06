@@ -7,25 +7,35 @@ object ParallelizationExample extends ZIOAppDefault {
   val program =
     par {
       for {
-        string <- stringZIO
-        fancy   = { println("WOW"); string }
-        result <- consumes(fancy, 10)
-        int3   <- intZIO
-        lovely  = { println(s"hello $result"); int3 }
-      } yield result.take(lovely)
+        string         <- stringZIO
+        cool            = string.toLowerCase
+        s"lo and $word" = cool
+        int            <- intZIO
+        fancy           = word + int
+      } yield cool + word + int
     }
 
   val run =
-    program.timed.useNow.debug("RESULT")
+    program.timed.debug("RESULT")
 
-  def delayedEffect[A](name: String)(a: => A): ZManaged[Clock, Nothing, A] =
-    (ZIO.debug(s"STARTING $name") *>
-      ZIO.sleep(2.seconds).as(a).debug(s"COMPLETED $name with result")).toManaged
+  ZIO
+    .ZIOWithFilterOps[zio.Clock, NoSuchElementException, String](stringZIO)
+    .withFilter {
+      case s"cool$string" => true
+      case _              => false
+    }
+    .map[String] { case s"cool$string" =>
+      string
+    }
 
-  lazy val stringZIO: ZManaged[Clock, NumberFormatException, String] =
-    delayedEffect("stringZIO")("LO")
+  def delayedEffect[A](name: String)(a: => A) =
+    ZIO.debug(s"STARTING $name") *>
+      ZIO.sleep(2.seconds).as(a).debug(s"COMPLETED $name with result")
 
-  lazy val intZIO: ZManaged[Clock with Console, NoSuchElementException, Int] =
+  lazy val stringZIO =
+    delayedEffect("stringZIO")("LO AND DANCE")
+
+  lazy val intZIO =
     delayedEffect("intZIO")(8)
 
   def consumes[A](string: String, int: Int) =
