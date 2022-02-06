@@ -1,0 +1,40 @@
+name: Master CI
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache SBT ivy cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.ivy2/cache
+          key: ${{ runner.os }}-sbt-ivy-cache-${{ hashFiles('build.sbt') }}
+      - name: Cache SBT
+        uses: actions/cache@v2
+        with:
+          path: ~/.sbt
+          key: ${{ runner.os }}-sbt-${{ hashFiles('build.sbt') }}
+      - name: Cache Coursier
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache
+          key: ${{ runner.os }}-coursier-${{ hashFiles('build.sbt') }}
+      - name: Cache .jabba
+        uses: actions/cache@v2
+        with:
+          path: ~/.jabba
+          key: ${{ runner.os }}-jabba-${{ hashFiles('build.sbt') }}
+      - uses: actions/checkout@v2
+      - name: Compile and test
+        run: |
+          sbt \
+            'set core.jvm / Compile / scalacOptions += "-Werror"' \
+            'set core.js / Compile / scalacOptions += "-Werror"' \
+            'set macros.jvm / Compile / scalacOptions += "-Werror"' \
+            'set macros.js / Compile / scalacOptions += "-Werror"' \
+            compile \
+            test
