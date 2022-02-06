@@ -5,6 +5,16 @@
 
 > **Automatically parallelize your for comprehensions at compile time.**
 
+```sbt
+// build.sbt
+libraryDependencies ++= Seq(
+  "io.github.kitlangton" %% "parallel-for" % "0.0.4",
+  "io.github.kitlangton" %% "parallel-for-zio" % "0.0.4", // for ZIO 2
+  "io.github.kitlangton" %% "parallel-for-zio1" % "0.0.4", // for ZIO 1
+  "io.github.kitlangton" %% "parallel-for-zio-query" % "0.0.4", // for ZIO QUERY (for ZIO 2)
+)
+```
+
 ## Example
 
 Wrapping a for-comprehension in `par` will automatically parallelize it at compile time. 
