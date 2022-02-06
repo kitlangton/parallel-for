@@ -1,4 +1,8 @@
-ThisBuild / scalaVersion := "2.13.7"
+ThisBuild / scalaVersion     := "2.13.7"
+ThisBuild / organization     := "io.github.kitlangton"
+ThisBuild / organizationName := "kitlangton"
+ThisBuild / description      := "Automatically parallelize your for comprehensions at compile time."
+ThisBuild / homepage         := Some(url("https://github.com/kitlangton/parallel-for"))
 
 val sharedSettings = Seq(
   licenses := Seq("APL2" -> url("http://www.apache.org/licenses/LICENSE-2.0.txt")),
