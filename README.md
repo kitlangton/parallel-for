@@ -11,7 +11,8 @@ libraryDependencies ++= Seq(
   "io.github.kitlangton" %% "parallel-for" % "0.0.5",
   "io.github.kitlangton" %% "parallel-for-zio" % "0.0.5", // for ZIO 2
   "io.github.kitlangton" %% "parallel-for-zio1" % "0.0.5", // for ZIO 1
-  "io.github.kitlangton" %% "parallel-for-zio-query" % "0.0.5", // for ZIO QUERY (for ZIO 2)
+  "io.github.kitlangton" %% "parallel-for-zio-query" % "0.0.5", // for ZIO QUERY (for ZIO 2),
+  "io.github.kitlangton" %% "parallel-for-cats-effect-3" % "0.0.5", // for Cats Effect 2,
 )
 ```
 
