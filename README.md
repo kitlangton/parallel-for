@@ -22,7 +22,7 @@ Wrapping a for-comprehension in `par` will automatically parallelize it at compi
 
 ```scala
 import parallelfor._
-import parallelfor.interop.zio._
+import parallelfor.interop.zio._ // Change this line depending on your effect system
 import zio._
 
 val program =
