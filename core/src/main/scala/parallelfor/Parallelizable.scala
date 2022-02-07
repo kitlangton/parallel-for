@@ -6,6 +6,12 @@ trait Parallelizable[F[-_, +_, +_]] {
   def map[R, E, A, B](fa: F[R, E, A], f: A => B): F[R, E, B]
 }
 
+trait Parallelizable1[F[+_]] {
+  def zipPar[A, B](left: F[A], right: F[B]): F[(A, B)]
+  def flatMap[A, B](fa: F[A], f: A => F[B]): F[B]
+  def map[A, B](fa: F[A], f: A => B): F[B]
+}
+
 object Parallelizable {
 
   implicit final class ParallelizableOps[F[-_, +_, +_], -R, +E, +A](private val self: F[R, E, A])(implicit

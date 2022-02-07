@@ -32,9 +32,10 @@ val sharedSettings = Seq(
   }
 )
 
-val zio1Version     = "1.0.13"
-val zio2Version     = "2.0.0-RC2"
-val zioQueryVersion = "0.3.0-RC2"
+val zio1Version        = "1.0.13"
+val zio2Version        = "2.0.0-RC2"
+val zioQueryVersion    = "0.3.0-RC2"
+val catsEffect3Version = "3.3.5"
 
 lazy val root = (project in file("."))
   .aggregate(core, zio)
@@ -92,6 +93,18 @@ lazy val zioQuery = (project in file("zio-query"))
       "dev.zio" %% "zio-test-sbt" % zio2Version % Test
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
+    sharedSettings
+  )
+  .dependsOn(core)
+
+lazy val catsEffect3 = (project in file("cats-effect-3"))
+  .settings(
+    name := "parallel-for-cats-effect-3",
+    libraryDependencies ++= Seq(
+      "org.typelevel"       %% "cats-effect" % catsEffect3Version,
+      "com.disneystreaming" %% "weaver-cats" % "0.7.9" % Test
+    ),
+    testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
     sharedSettings
   )
   .dependsOn(core)
