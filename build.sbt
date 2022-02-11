@@ -38,71 +38,72 @@ val zioQueryVersion    = "0.3.0-RC2"
 val catsEffect3Version = "3.3.5"
 
 lazy val root = (project in file("."))
-  .aggregate(core, zio)
+  .aggregate(core.js, core.jvm, zio.js, zio.jvm)
   .settings(
     name               := "parallel-for",
     crossScalaVersions := Nil,
     skip / publish     := true
   )
 
-lazy val core = (project in file("core"))
+lazy val core = (crossProject(JSPlatform, JVMPlatform) in file("core"))
   .settings(
     name := "parallel-for",
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-      "dev.zio"       %% "zio-test"       % zio2Version % Test,
-      "dev.zio"       %% "zio-test-sbt"   % zio2Version % Test
+      "dev.zio"       %%% "zio-test"       % zio2Version % Test,
+      "dev.zio"       %%% "zio-test-sbt"   % zio2Version % Test
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     sharedSettings
   )
+  .enablePlugins(ScalaJSPlugin)
 
-lazy val zio1 = (project in file("zio1"))
+lazy val zio1 = (crossProject(JSPlatform, JVMPlatform) in file("zio1"))
   .settings(
     name := "parallel-for-zio-1",
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio"          % zio1Version,
-      "dev.zio" %% "zio-test"     % zio1Version % Test,
-      "dev.zio" %% "zio-test-sbt" % zio1Version % Test
+      "dev.zio" %%% "zio"          % zio1Version,
+      "dev.zio" %%% "zio-test"     % zio1Version % Test,
+      "dev.zio" %%% "zio-test-sbt" % zio1Version % Test
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     sharedSettings
   )
   .dependsOn(core)
 
-lazy val zio = (project in file("zio"))
+lazy val zio = (crossProject(JSPlatform, JVMPlatform)  in file("zio"))
   .settings(
     name := "parallel-for-zio",
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio"          % zio2Version,
-      "dev.zio" %% "zio-test"     % zio2Version % Test,
-      "dev.zio" %% "zio-test-sbt" % zio2Version % Test
+      "dev.zio" %%% "zio"          % zio2Version,
+      "dev.zio" %%% "zio-test"     % zio2Version % Test,
+      "dev.zio" %%% "zio-test-sbt" % zio2Version % Test
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     sharedSettings
   )
   .dependsOn(core)
 
-lazy val zioQuery = (project in file("zio-query"))
+lazy val zioQuery = (crossProject(JSPlatform, JVMPlatform)  in file("zio-query"))
   .settings(
     name := "parallel-for-zio-query",
     libraryDependencies ++= Seq(
-      "dev.zio" %% "zio-query"    % zioQueryVersion,
-      "dev.zio" %% "zio-test"     % zio2Version % Test,
-      "dev.zio" %% "zio-test-sbt" % zio2Version % Test
+      "dev.zio" %%% "zio-query"    % zioQueryVersion,
+      "dev.zio" %%% "zio-test"     % zio2Version % Test,
+      "dev.zio" %%% "zio-test-sbt" % zio2Version % Test
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     sharedSettings
   )
   .dependsOn(core)
 
-lazy val catsEffect3 = (project in file("cats-effect-3"))
+lazy val catsEffect3 = (crossProject(JSPlatform, JVMPlatform)  in file("cats-effect-3"))
   .settings(
     name := "parallel-for-cats-effect-3",
     libraryDependencies ++= Seq(
-      "org.typelevel"       %% "cats-effect" % catsEffect3Version,
-      "com.disneystreaming" %% "weaver-cats" % "0.7.9" % Test
+      "org.typelevel"       %%% "cats-effect" % catsEffect3Version,
+      "com.disneystreaming" %%% "weaver-cats" % "0.7.9" % Test
     ),
     testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
     sharedSettings
