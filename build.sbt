@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion     := "2.13.7"
+ThisBuild / scalaVersion     := "2.13.8"
 ThisBuild / organization     := "io.github.kitlangton"
 ThisBuild / organizationName := "kitlangton"
 ThisBuild / description      := "Automatically parallelize your for comprehensions at compile time."
@@ -51,8 +51,8 @@ lazy val core = (crossProject(JSPlatform, JVMPlatform) in file("core"))
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-reflect"  % scalaVersion.value,
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-      "dev.zio"       %%% "zio-test"       % zio2Version % Test,
-      "dev.zio"       %%% "zio-test-sbt"   % zio2Version % Test
+      "dev.zio"      %%% "zio-test"       % zio2Version % Test,
+      "dev.zio"      %%% "zio-test-sbt"   % zio2Version % Test
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework"),
     sharedSettings
@@ -72,7 +72,7 @@ lazy val zio1 = (crossProject(JSPlatform, JVMPlatform) in file("zio1"))
   )
   .dependsOn(core)
 
-lazy val zio = (crossProject(JSPlatform, JVMPlatform)  in file("zio"))
+lazy val zio = (crossProject(JSPlatform, JVMPlatform) in file("zio"))
   .settings(
     name := "parallel-for-zio",
     libraryDependencies ++= Seq(
@@ -85,7 +85,7 @@ lazy val zio = (crossProject(JSPlatform, JVMPlatform)  in file("zio"))
   )
   .dependsOn(core)
 
-lazy val zioQuery = (crossProject(JSPlatform, JVMPlatform)  in file("zio-query"))
+lazy val zioQuery = (crossProject(JSPlatform, JVMPlatform) in file("zio-query"))
   .settings(
     name := "parallel-for-zio-query",
     libraryDependencies ++= Seq(
@@ -98,7 +98,7 @@ lazy val zioQuery = (crossProject(JSPlatform, JVMPlatform)  in file("zio-query")
   )
   .dependsOn(core)
 
-lazy val catsEffect3 = (crossProject(JSPlatform, JVMPlatform)  in file("cats-effect-3"))
+lazy val catsEffect3 = (crossProject(JSPlatform, JVMPlatform) in file("cats-effect-3"))
   .settings(
     name := "parallel-for-cats-effect-3",
     libraryDependencies ++= Seq(
