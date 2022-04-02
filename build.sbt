@@ -33,7 +33,7 @@ val sharedSettings = Seq(
 )
 
 val zio1Version        = "1.0.13"
-val zio2Version        = "2.0.0-RC3"
+val zio2Version        = "2.0.0-RC4"
 val zioQueryVersion    = "0.3.0-RC2"
 val catsEffect3Version = "3.3.5"
 
