@@ -2,9 +2,9 @@ package parallelfor
 
 import parallelfor.FreeParallel.{effect, parallelizable}
 import parallelfor.ParTrace.zipped
-import zio.test.{Trace => _, _}
+import zio.test._
 
-object ParallelSpec extends DefaultRunnableSpec {
+object ParallelSpec extends ZIOSpecDefault {
   def spec =
     suite("ParallelFor")(
       test("map only") {

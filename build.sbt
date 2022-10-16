@@ -32,9 +32,9 @@ val sharedSettings = Seq(
   }
 )
 
-val zio1Version        = "1.0.13"
-val zio2Version        = "2.0.0-RC6"
-val zioQueryVersion    = "0.3.0-RC2"
+val zio1Version        = "1.0.17"
+val zio2Version        = "2.0.2"
+val zioQueryVersion    = "0.3.1"
 val catsEffect3Version = "3.3.5"
 
 lazy val root = (project in file("."))
