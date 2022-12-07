@@ -49,6 +49,9 @@ val program =
 
 ***Neato!***
 
+
+Similar project: [VirtusLab/avocADO] (only for Scala 3)
+
 ## TODO
 
 - [x] Work with ZIO and ZManaged
@@ -61,8 +64,8 @@ val program =
 - [ ] Cross-build against 2.11/2.12
 - [ ] Get it to work with Scala 3
 
-
 [Badge-SonatypeReleases]: https://img.shields.io/nexus/r/https/oss.sonatype.org/io.github.kitlangton/parallel-for_2.13.svg "Sonatype Releases"
 [Badge-SonatypeSnapshots]: https://img.shields.io/nexus/s/https/oss.sonatype.org/io.github.kitlangton/parallel-for_2.13.svg "Sonatype Snapshots"
 [Link-SonatypeSnapshots]: https://oss.sonatype.org/content/repositories/snapshots/io/github/kitlangton/parallel-for_2.13/ "Sonatype Snapshots"
 [Link-SonatypeReleases]: https://oss.sonatype.org/content/repositories/releases/io/github/kitlangton/parallel-for_2.13/ "Sonatype Releases"
+[VirtusLab/avocADO]: https://github.com/VirtusLab/avocADO
