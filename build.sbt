@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion     := "2.13.8"
+ThisBuild / scalaVersion     := "2.13.14"
 ThisBuild / organization     := "io.github.kitlangton"
 ThisBuild / organizationName := "kitlangton"
 ThisBuild / description      := "Automatically parallelize your for comprehensions at compile time."
